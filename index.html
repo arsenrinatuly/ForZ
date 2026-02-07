@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8" />
+  <title>Зере 💖</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0; }
+    html, body {
+      width:100%; height:100%;
+      background:#0a0a0a;
+      font-family:'Georgia', serif;
+      color:#ffdada;
+      overflow-x:hidden;
+    }
+
+    canvas { position: fixed; inset:0; z-index:0; }
+
+    /* INTRO */
+    .intro {
+      position: fixed; inset:0; z-index:10;
+      background:#0a0a0a;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      gap:22px;
+      transition: opacity 0.8s ease;
+    }
+    .intro h1 {
+      color:#ff4f4f;
+      font-size:clamp(1.8rem,8vw,2.4rem);
+      text-align:center;
+    }
+    .intro button {
+      padding:10px 22px;
+      font-size:1.1rem;
+      border-radius:30px;
+      border:none;
+      cursor:pointer;
+      background:#ff4f4f;
+      color:#fff;
+    }
+
+    /* CONTENT */
+    .content {
+      position: relative;
+      z-index:2;
+      max-width:800px;
+      margin:60px auto 40px;
+      padding:16px;
+      background:rgba(0,0,0,0.15);
+      backdrop-filter: blur(6px);
+      border-radius:20px;
+      text-align:center;
+    }
+    .hidden { display:none; }
+    #typedText {
+      font-size:1.05rem;
+      line-height:1.6;
+      white-space: pre-line;
+    }
+
+    /* GALLERY */
+.gallery {
+  position: relative;
+  z-index: 2;
+  max-width: 1000px;
+  margin: 0 auto 80px;
+  padding: 0 12px;
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 120px); /* 🔥 фикс */
+  justify-content: center;                         /* 🔥 центр */
+
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+.photo-card {
+  width: 120px;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  text-align: center;
+
+  opacity: 0;
+  transform: translateY(40px);
+  transition: all 0.8s ease;
+}
+
+    .photo-card.show {
+      opacity:1;
+      transform:translateY(0);
+    }
+
+    .photo {
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      border-radius:12px;
+      border:4px solid #fff;
+      box-shadow:0 8px 20px rgba(0,0,0,0.4);
+      cursor:pointer;
+    }
+
+    .caption {
+      margin-top:6px;
+      font-size:0.9rem;
+    }
+
+    /* MODAL */
+    .modal {
+      position: fixed;
+      inset:0;
+      background:rgba(0,0,0,0.85);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      z-index:20;
+      padding:20px;
+    }
+    .modal.show { display:flex; }
+    .modal img {
+      max-width:95%;
+      max-height:65vh;
+      border-radius:12px;
+      border:4px solid #fff;
+    }
+    .modal-caption {
+      margin-top:12px;
+      color:#fff;
+      text-align:center;
+    }
+    .close-btn {
+      position:absolute;
+      top:20px;
+      right:25px;
+      font-size:2rem;
+      cursor:pointer;
+      color:#fff;
+    }
+  </style>
+</head>
+
+<body>
+
+<canvas id="canvas"></canvas>
+
+<audio id="bgMusic" loop>
+  <source src="music.mp3" type="audio/mpeg">
+</audio>
+
+
+<div class="intro" id="intro">
+  <h1>Зерешкам…</h1>
+  <button id="startBtn">кнопочка</button>
+</div>
+
+
+<div class="content hidden" id="content">
+  <p id="typedText"></p>
+</div>
+
+
+<div class="gallery" id="gallery">
+
+  <div class="photo-card">
+    <img src="left.jpg" class="photo" data-caption="Фотка грязных кроссовок, но нам было пох">
+    <div class="caption">Грязные кроссовки</div>
+  </div>
+
+  <div class="photo-card">
+    <img src="right.jpg" class="photo" data-caption="Первая совместная фотка">
+    <div class="caption">Первая фотка</div>
+  </div>
+
+  <div class="photo-card">
+    <img src="3image.jpg" class="photo" data-caption="Первое 8 марта">
+    <div class="caption">8 марта</div>
+  </div>
+
+  <div class="photo-card">
+    <img src="4image.jpg" class="photo" data-caption="Центральный парк">
+    <div class="caption">Прогулка</div>
+  </div>
+
+  <div class="photo-card">
+    <img src="9image.jpg" class="photo" data-caption="Моя самая любимая фотография из твоих личных">
+    <div class="caption">Лучшая фотка</div>
+  </div>
+
+  <div class="photo-card">
+    <img src="10image.jpg" class="photo" data-caption="Моя любимая наша совместная фотография">
+    <div class="caption">favorite</div>
+  </div>
+
+</div>
+
+
+<div class="modal" id="modal">
+  <span class="close-btn" id="closeBtn">✕</span>
+  <img id="modalImg">
+  <div class="modal-caption" id="modalCaption"></div>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+let w, h, particles = [];
+
+function resize() {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+  particles = [];
+  for (let t = 0; t < Math.PI * 2; t += 0.03) {
+    const s = 18;
+    const x = 16 * Math.sin(t) ** 3;
+    const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+    particles.push({
+      x: w/2 + x*s,
+      y: h/2 - y*s,
+      bx: w/2 + x*s,
+      by: h/2 - y*s,
+      vx: Math.random() - 0.5,
+      vy: Math.random() - 0.5
+    });
+  }
+}
+window.addEventListener("resize", resize);
+resize();
+
+function animate() {
+  ctx.clearRect(0,0,w,h);
+  particles.forEach(p=>{
+    p.x += p.vx;
+    p.y += p.vy;
+    if (Math.hypot(p.x-p.bx, p.y-p.by) > 20) {
+      p.vx *= -1;
+      p.vy *= -1;
+    }
+    ctx.beginPath();
+    ctx.fillStyle="#ff3b3b";
+    ctx.arc(p.x,p.y,2,0,Math.PI*2);
+    ctx.fill();
+  });
+  requestAnimationFrame(animate);
+}
+animate();
+
+
+const startBtn = document.getElementById("startBtn");
+const intro = document.getElementById("intro");
+const content = document.getElementById("content");
+const typedText = document.getElementById("typedText");
+const gallery = document.getElementById("gallery");
+const cards = document.querySelectorAll(".photo-card");
+const music = document.getElementById("bgMusic");
+
+const text = `Туган кунынмен жаным, в правду мен сени гана жаксы корем и сагынам.
+Может я и был где то груб и поступал неправильно. Прости меня за это.
+Я не перестану любить тебя. Я всегда хочу чтобы ты была счастлива ❤️`;
+
+let i = 0;
+function type() {
+  if (i < text.length) {
+    typedText.textContent += text[i++];
+    setTimeout(type, 45);
+  } else {
+    gallery.style.opacity = "1";
+    cards.forEach((c, idx) =>
+      setTimeout(() => c.classList.add("show"), idx * 150)
+    );
+  }
+}
+
+startBtn.onclick = () => {
+  music.volume = 0.4;
+  music.play().catch(()=>{});
+
+  intro.style.opacity = "0";
+  setTimeout(() => {
+    intro.remove();
+    content.classList.remove("hidden");
+    type();
+  }, 800);
+};
+
+
+const modal = document.getElementById("modal");
+const modalImg = document.getElementById("modalImg");
+const modalCaption = document.getElementById("modalCaption");
+const closeBtn = document.getElementById("closeBtn");
+
+document.querySelectorAll(".photo").forEach(img=>{
+  img.onclick = ()=>{
+    modalImg.src = img.src;
+    modalCaption.textContent = img.dataset.caption;
+    modal.classList.add("show");
+  };
+});
+closeBtn.onclick = ()=>modal.classList.remove("show");
+modal.onclick = e=>{
+  if (e.target === modal) modal.classList.remove("show");
+};
+</script>
+
+</body>
+</html>
